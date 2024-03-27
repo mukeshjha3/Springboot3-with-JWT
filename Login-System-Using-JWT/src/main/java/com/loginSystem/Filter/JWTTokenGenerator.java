@@ -3,16 +3,12 @@ package com.loginSystem.Filter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 
 import javax.crypto.SecretKey;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -36,7 +32,7 @@ public class JWTTokenGenerator extends OncePerRequestFilter {
 					.claim("username", authentication.getName())
 					.claim("authorities", authentication.getAuthorities())
 					.issuedAt(new Date())
-					.expiration(new Date((new Date()).getTime() + 30000000)).signWith(key)
+					.expiration(new Date((new Date()).getTime() + 3000)).signWith(key)
 					.compact();
 			response.setHeader(JWT_HEADER, jwt); // Create a JSON response body containing the token
 			System.out.println("Authentication Set in the claims is :" + authentication.getAuthorities());

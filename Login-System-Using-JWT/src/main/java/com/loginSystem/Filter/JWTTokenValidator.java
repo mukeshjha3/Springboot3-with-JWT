@@ -3,6 +3,8 @@ package com.loginSystem.Filter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -17,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
@@ -36,16 +39,9 @@ public class JWTTokenValidator extends OncePerRequestFilter {
 		String jwt = request.getHeader(JWT_HEADER);
 
 		if (null != jwt) {
-
-			//Bearer ihaskidkn
-			
 			try {
-				 SecretKey key = Keys.hmacShaKeyFor(
-	                        JWT_KEY.getBytes(StandardCharsets.UTF_8));
-				 System.out.println("Secret Key is : "+key);
+				SecretKey key = Keys.hmacShaKeyFor(JWT_KEY.getBytes(StandardCharsets.UTF_8));
 				var afterremovingbearer = jwt.substring(7);
-				System.out.println(jwt);
-				System.out.println(afterremovingbearer);
 				Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(afterremovingbearer)
 						.getPayload();
 				String username = String.valueOf(claims.get("username"));
@@ -54,23 +50,53 @@ public class JWTTokenValidator extends OncePerRequestFilter {
 				// Create a list of GrantedAuthority objects from the authorities claim
 				List<GrantedAuthority> authorities = new ArrayList<>();
 				for (Map<String, String> authorityMap : authoritiesClaim) {
-				    authorities.add(new SimpleGrantedAuthority(authorityMap.get("authority")));
+					authorities.add(new SimpleGrantedAuthority(authorityMap.get("authority")));
 				}
-				//List<String> authoritiesList = (List<String>) claims.get("authorities");
-				//String authoritiesString = String.join(",", authoritiesList);
+				System.out.println(authorities);
 				Authentication auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
 				SecurityContextHolder.getContext().setAuthentication(auth);
 				System.out.println("Validation Completed");
-				
-			} catch (Exception e) {
-				e.printStackTrace();
+
+			}
+			catch (ExpiredJwtException e) {
+			    try {
+			        System.out.println("Renewing the token....");
+			        SecretKey key = Keys.hmacShaKeyFor(JWT_KEY.getBytes(StandardCharsets.UTF_8));
+			        var afterremovingbearer = jwt.substring(7);
+			        String username = e.getClaims().get("username", String.class);
+			    	List<Map<String, String>> authoritiesClaim = (List<Map<String, String>>) e.getClaims().get("authorities", Collection.class);
+
+			    	List<GrantedAuthority> authorities = new ArrayList<>();
+					for (Map<String, String> authorityMap : authoritiesClaim) {
+						authorities.add(new SimpleGrantedAuthority(authorityMap.get("authority")));
+					}
+			        String renewaljwt = Jwts.builder().issuer("Mukesh").subject("JWT Token")
+							.claim("username", username)
+							.claim("authorities", authorities)
+							.issuedAt(new Date())
+							.expiration(new Date((new Date()).getTime() + 3000)).signWith(key)
+							.compact();
+			        response.setHeader(JWT_HEADER, renewaljwt);
+			        System.out.println("JWT after renewal : " + renewaljwt);
+			        
+			        Authentication auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
+					SecurityContextHolder.getContext().setAuthentication(auth);
+					System.out.println("Validation Completed");
+
+			        // Proceed with the filter chain after token renewal
+			        filterChain.doFilter(request, response);
+			        
+			    }catch (Exception ex) {
+				ex.printStackTrace();
 				throw new BadCredentialsException("Invalid Token received!");
 
 			}
 
 		}
-		 filterChain.doFilter(request, response);
+			
 
+	}
+		filterChain.doFilter(request, response);	
 	}
 
 	protected boolean shouldNotFilter(HttpServletRequest request) {

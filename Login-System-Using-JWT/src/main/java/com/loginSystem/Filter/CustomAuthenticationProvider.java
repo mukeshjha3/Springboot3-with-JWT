@@ -33,7 +33,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 		System.out.println("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
 		String username = authentication.getName();
-		String password = authentication.getCredentials().toString();
+	String password = authentication.getCredentials().toString();
+		
 		User user = userRepo.findByEmail(username)
 				.orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
 		List<GrantedAuthority> authorities = new ArrayList<>();
